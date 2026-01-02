@@ -1,6 +1,7 @@
 from torch.utils.data import DataLoader, random_split
 from torch.optim import AdamW
 from torch import no_grad, device, cuda
+from torch.nn.functional import cross_entropy
 from tqdm import tqdm
 
 from src import FunctionalDataset, Model, plot_results
@@ -22,8 +23,10 @@ if __name__ == "__main__":
 
     train_losses = []
     test_losses = []
+    excl_losses = []
     train_accs = []
     test_accs = []
+    excl_accs = []
 
     with tqdm(range(EPOCHS)) as bar:
         for epoch in bar:
@@ -48,6 +51,9 @@ if __name__ == "__main__":
             test_loss = 0.0
             test_correct = 0
             test_total = 0
+            excl_loss = 0.0
+            excl_correct = 0
+            excl_total = 0
             with no_grad():
                 for x, y in test_loader:
                     x, y = x.to(dev), y.to(dev)
@@ -55,8 +61,19 @@ if __name__ == "__main__":
                     test_loss += model.loss(outputs, y).item()
                     test_correct += (outputs.argmax(dim=1) == y).sum().item()
                     test_total += y.size(0)
+                for x, y in train_loader:
+                    x, y = x.to(dev), y.to(dev)
+                    outputs = model(x)
+                    preds = outputs.argmax(dim=1)
+                    wrong = preds != y
+                    if wrong.sum() > 0:
+                        excl_loss += cross_entropy(outputs[wrong], y[wrong]).item()
+                        excl_total += 1
+                    excl_correct += wrong.sum().item()
             test_losses.append(test_loss / len(test_loader))
             test_accs.append(test_correct / test_total)
+            excl_losses.append(excl_loss / max(excl_total, 1))
+            excl_accs.append(1 - (excl_correct / epoch_total))
             bar.set_description(f"Σ={train_losses[-1]:.3f} α={train_accs[-1]:.2f} Σ'={test_losses[-1]:.3f} α'={test_accs[-1]:.2f}")
 
-    plot_results(train_losses, test_losses, train_accs, test_accs)
+    plot_results(train_losses, test_losses, excl_losses, train_accs, test_accs, excl_accs)
