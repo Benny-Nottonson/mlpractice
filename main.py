@@ -1,48 +1,34 @@
-from torch.utils.data import DataLoader, random_split
-from torch.optim import AdamW
-from torch import no_grad, device, cuda
+from torch import no_grad
 from tqdm import tqdm
 
-from src import FunctionalDataset, Model, plot_results
-from src import DATASET_SIZE, TRAIN_SPLIT, BATCH_SIZE, EPOCHS, LEARNING_RATE, WEIGHT_DECAY
+from src import EPOCHS, FunctionalDataset, Model, EpochMetrics, plot_results
 
 def function(a, b, p):
     return (a + b) % p
 
 if __name__ == "__main__":
-    dev = device("cuda" if cuda.is_available() else "cpu")
-
-    dataset = FunctionalDataset(func=function)
-    train, test = random_split(dataset, [int(TRAIN_SPLIT * DATASET_SIZE), DATASET_SIZE - int(TRAIN_SPLIT * DATASET_SIZE)])
-    train_loader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True)
-    test_loader = DataLoader(test, batch_size=BATCH_SIZE)
-
-    model = Model().to(dev)
-    optimizer = AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
-
-    train_losses = []
-    test_losses = []
-    train_accs = []
-    test_accs = []
+    model = Model()
+    train_loader, test_loader = FunctionalDataset(func=function).get_loaders()
+    metrics = []
 
     with tqdm(range(EPOCHS)) as bar:
         for epoch in bar:
             model.train()
-            epoch_loss = 0.0
-            epoch_correct = 0
-            epoch_total = 0
+            train_loss = 0.0
+            train_correct = 0
+            train_total = 0
             for x, y in train_loader:
-                x, y = x.to(dev), y.to(dev)
-                optimizer.zero_grad()
+                x, y = x, y
+                model.optimizer.zero_grad()
                 outputs = model(x)
                 batch_loss = model.loss(outputs, y)
                 batch_loss.backward()
-                optimizer.step()
-                epoch_loss += batch_loss.item()
-                epoch_correct += (outputs.argmax(dim=1) == y).sum().item()
-                epoch_total += y.size(0)
-            train_losses.append(epoch_loss / len(train_loader))
-            train_accs.append(epoch_correct / epoch_total)
+                model.optimizer.step()
+                train_loss += batch_loss.item()
+                train_correct += (outputs.argmax(dim=1) == y).sum().item()
+                train_total += y.size(0)
+            train_loss_avg = train_loss / len(train_loader)
+            train_acc = train_correct / train_total
 
             model.eval()
             test_loss = 0.0
@@ -50,13 +36,21 @@ if __name__ == "__main__":
             test_total = 0
             with no_grad():
                 for x, y in test_loader:
-                    x, y = x.to(dev), y.to(dev)
+                    x, y = x, y
                     outputs = model(x)
                     test_loss += model.loss(outputs, y).item()
                     test_correct += (outputs.argmax(dim=1) == y).sum().item()
                     test_total += y.size(0)
-            test_losses.append(test_loss / len(test_loader))
-            test_accs.append(test_correct / test_total)
-            bar.set_description(f"Σ={train_losses[-1]:.3f} α={train_accs[-1]:.2f} Σ'={test_losses[-1]:.3f} α'={test_accs[-1]:.2f}")
+            test_loss_avg = test_loss / len(test_loader)
+            test_acc = test_correct / test_total
+            
+            epoch_metrics = EpochMetrics(
+                train_loss=train_loss_avg,
+                train_acc=train_acc,
+                test_loss=test_loss_avg,
+                test_acc=test_acc
+            )
+            metrics.append(epoch_metrics)
+            bar.set_description(f"Σ={epoch_metrics.train_loss:.3f} α={epoch_metrics.train_acc:.2f} Σ'={epoch_metrics.test_loss:.3f} α'={epoch_metrics.test_acc:.2f}")
 
-    plot_results(train_losses, test_losses, train_accs, test_accs)
+    plot_results(metrics)
