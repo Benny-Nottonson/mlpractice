@@ -3,6 +3,15 @@ from torch.optim import AdamW
 
 from src.constants import PRIME, LEARNING_RATE, WEIGHT_DECAY
 
+# ---------------------------- Optimizer Notes ------------------------ #
+# Transformer / LLM SoTA: AdamW, LinearWarmup, CosineAnnealingLR        #
+# Vision SoTA: SGD or AdamW, CosineAnnealingLR or OneCycleLR            #
+# Large Models (Memory Bound): Adafactor                                #
+# Generalization: SGD + StochasticWeightAveraging                       #
+#                                                                       #
+# Optimizer Transforms Gradients from Backpropagation                   #
+# --------------------------------------------------------------------- #
+
 class Model(Module):
     def __init__(self, p=PRIME, embed_dim=128, hidden_size=256, output_size=PRIME):
         super(Model, self).__init__()
