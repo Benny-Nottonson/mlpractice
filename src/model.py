@@ -1,8 +1,7 @@
-from torch.nn import Module, Linear, ReLU, Sequential, Embedding, CrossEntropyLoss, LSTM, Dropout
+from torch.nn import Module, Linear, ReLU, Sequential, Embedding, CrossEntropyLoss, LSTM, Dropout, Conv2d, MaxPool2d, Flatten, BatchNorm2d, AdaptiveAvgPool2d
 from torch.optim import AdamW
 
 from src.constants import PRIME, LEARNING_RATE, WEIGHT_DECAY
-from src.experiments.layers import ScoreSpaceEnsembleLayer
 
 class Model(Module):
     def __init__(self, p=PRIME, embed_dim=128, hidden_size=256, output_size=PRIME):
@@ -17,7 +16,6 @@ class Model(Module):
         self.model = Sequential(
             Linear(hidden_size, hidden_size),
             ReLU(),
-            ScoreSpaceEnsembleLayer(hidden_size),
             Linear(hidden_size, output_size)
         )
         self.optimizer = AdamW(self.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
@@ -26,3 +24,30 @@ class Model(Module):
         e = self.embed(x)
         _, (h, _) = self.lstm(e)
         return self.model(h[-1])
+
+class ImageModel(Module):
+    def __init__(self, num_classes=10, in_channels=1, learning_rate=1e-3):
+        super(ImageModel, self).__init__()
+        self.loss = CrossEntropyLoss(label_smoothing=0.1)
+        self.model = Sequential(
+            Conv2d(in_channels, 64, kernel_size=7, stride=4, padding=3, bias=True),
+            ReLU(inplace=True),
+
+            Conv2d(64, 128, kernel_size=1, bias=True),
+            ReLU(inplace=True),
+
+            Conv2d(128, 128, kernel_size=3, stride=2, padding=1, groups=128, bias=True),
+            ReLU(inplace=True),
+
+            Conv2d(128, 160, kernel_size=1, bias=True),
+            ReLU(inplace=True),
+
+            AdaptiveAvgPool2d(1),
+            Flatten(),
+            Linear(160, num_classes, bias=True)
+        )
+
+        self.optimizer = AdamW(self.parameters(), lr=learning_rate, weight_decay=5e-3, fused=True, betas=(0.9, 0.95))
+
+    def forward(self, x):
+        return self.model(x)
