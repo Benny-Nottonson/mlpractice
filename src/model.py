@@ -2,7 +2,7 @@ from torch.nn import Module, Linear, ReLU, Sequential, Embedding, CrossEntropyLo
 from torch.optim import AdamW
 
 from src.constants import PRIME, LEARNING_RATE, WEIGHT_DECAY
-from src.experiments import ScoreSpaceEnsembleLayer
+from src.experiments.layers import ScoreSpaceEnsembleLayer
 
 class Model(Module):
     def __init__(self, p=PRIME, embed_dim=128, hidden_size=256, output_size=PRIME):

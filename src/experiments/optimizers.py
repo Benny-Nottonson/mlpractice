@@ -1,12 +1,9 @@
-from __future__ import annotations
-
 from math import sqrt
 from typing import Dict, List, Optional, Tuple
 
 import torch
 from torch import no_grad
 from torch.optim import Optimizer
-
 
 class StructuralHeadOptimizer(Optimizer):
     def __init__(
@@ -69,8 +66,8 @@ class StructuralHeadOptimizer(Optimizer):
 
                 k = max(4, m // 16)
                 k = min(k, m)
-
-                kth = abs_s.kthvalue(m - k + 1).values
+                sorted_s, _ = abs_s.sort()
+                kth = sorted_s[-k]
                 head_mask = abs_s >= kth
                 head = s[head_mask]
                 if head.numel() == 0:
