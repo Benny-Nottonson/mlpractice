@@ -1,3 +1,6 @@
+from torch.accelerator import is_available, current_accelerator
+
+DEVICE = current_accelerator() if is_available() else "cpu"
 PRIME = 97
 DATASET_SIZE = PRIME ** 2
 TRAIN_SPLIT = 0.3

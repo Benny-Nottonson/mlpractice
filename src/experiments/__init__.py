@@ -1,1 +1,2 @@
 from .optimizers import StructuralHeadOptimizer
+from .layers import ScoreSpaceEnsembleLayer

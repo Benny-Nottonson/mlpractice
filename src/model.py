@@ -1,32 +1,28 @@
-from torch.nn import Module, Linear, ReLU, Sequential, CrossEntropyLoss, Embedding
+from torch.nn import Module, Linear, ReLU, Sequential, Embedding, CrossEntropyLoss, LSTM, Dropout
 from torch.optim import AdamW
 
 from src.constants import PRIME, LEARNING_RATE, WEIGHT_DECAY
-
-# ---------------------------- Optimizer Notes ------------------------ #
-# Transformer / LLM SoTA: AdamW, LinearWarmup, CosineAnnealingLR        #
-# Vision SoTA: SGD or AdamW, CosineAnnealingLR or OneCycleLR            #
-# Large Models (Memory Bound): Adafactor                                #
-# Generalization: SGD + StochasticWeightAveraging                       #
-#                                                                       #
-# Optimizer Transforms Gradients from Backpropagation                   #
-# --------------------------------------------------------------------- #
+from src.experiments import ScoreSpaceEnsembleLayer
 
 class Model(Module):
     def __init__(self, p=PRIME, embed_dim=128, hidden_size=256, output_size=PRIME):
         super(Model, self).__init__()
         self.loss = CrossEntropyLoss()
         self.embed = Embedding(p, embed_dim)
+        self.lstm = LSTM(
+            input_size=embed_dim,
+            hidden_size=hidden_size,
+            batch_first=True
+        )
         self.model = Sequential(
-            Linear(embed_dim * 2, hidden_size),
-            ReLU(),
             Linear(hidden_size, hidden_size),
             ReLU(),
+            ScoreSpaceEnsembleLayer(hidden_size),
             Linear(hidden_size, output_size)
         )
         self.optimizer = AdamW(self.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     
     def forward(self, x):
         e = self.embed(x)
-        e = e.view(e.size(0), -1)
-        return self.model(e)
+        _, (h, _) = self.lstm(e)
+        return self.model(h[-1])

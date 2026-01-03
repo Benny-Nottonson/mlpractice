@@ -1,13 +1,13 @@
-from torch import no_grad, cat
+from torch import no_grad, compile, cat
 from tqdm import tqdm
 
-from src import EPOCHS, FunctionalDataset, Model, EpochMetrics, plot_results
+from src import EPOCHS, DEVICE, FunctionalDataset, Model, EpochMetrics, plot_results
 
 def function(a, b, p):
     return (a + b) % p
 
 if __name__ == "__main__":
-    model = Model()
+    model = Model().to(DEVICE)
     train_loader, test_loader = FunctionalDataset(func=function).get_loaders()
     metrics = []
 
@@ -16,6 +16,7 @@ if __name__ == "__main__":
             model.train()
             train_losses, train_preds, train_targets = [], [], []
             for x, y in train_loader:
+                x, y = x.to(DEVICE), y.to(DEVICE)
                 model.optimizer.zero_grad()
                 outputs = model(x)
                 batch_loss = model.loss(outputs, y)
@@ -34,6 +35,7 @@ if __name__ == "__main__":
             test_losses, test_preds, test_targets = [], [], []
             with no_grad():
                 for x, y in test_loader:
+                    x, y = x.to(DEVICE), y.to(DEVICE)
                     outputs = model(x)
                     test_losses.append(model.loss(outputs, y).item())
                     test_preds.append(outputs.argmax(dim=1))
