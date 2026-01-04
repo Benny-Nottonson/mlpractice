@@ -26,7 +26,7 @@ class Model(Module):
         return self.model(h[-1])
 
 class ImageModel(Module):
-    def __init__(self, num_classes=10, in_channels=1, learning_rate=1e-3):
+    def __init__(self, num_classes=10, in_channels=1):
         super(ImageModel, self).__init__()
         self.loss = CrossEntropyLoss(label_smoothing=0.1)
         self.model = Sequential(
@@ -47,7 +47,7 @@ class ImageModel(Module):
             Linear(160, num_classes, bias=True)
         )
 
-        self.optimizer = AdamW(self.parameters(), lr=learning_rate, weight_decay=5e-3, fused=True, betas=(0.9, 0.95))
+        self.optimizer = AdamW(self.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY, fused=True, betas=(0.9, 0.95))
 
     def forward(self, x):
         return self.model(x)
